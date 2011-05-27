@@ -282,7 +282,6 @@ def send_now(users, label, extra_context=None, on_site=True, sender=None):
     ) # TODO make formats configurable
 
     for user in users:
-        recipients = []
         # get user language for user from language store defined in
         # NOTIFICATION_LANGUAGE_MODULE setting
         try:
@@ -319,8 +318,7 @@ def send_now(users, label, extra_context=None, on_site=True, sender=None):
         notice = Notice.objects.create(recipient=user, message=messages['notice.html'],
             notice_type=notice_type, on_site=on_site, sender=sender)
         if should_send(user, notice_type, "1") and user.email and user.is_active: # Email
-            recipients.append(user.email)
-        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, recipients)
+            send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [user])
 
     # reset environment to original language
     activate(current_language)

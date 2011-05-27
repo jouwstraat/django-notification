@@ -45,17 +45,23 @@ def send_all():
         try:
             for queued_batch in NoticeQueueBatch.objects.all():
                 notices = pickle.loads(str(queued_batch.pickled_data).decode("base64"))
-                for user, label, extra_context, on_site, sender in notices:
-                    try:
-                        user = User.objects.get(pk=user)
-                        logging.info("emitting notice %s to %s" % (label, user))
-                        # call this once per user to be atomic and allow for logging to
-                        # accurately show how long each takes.
-                        notification.send_now([user], label, extra_context, on_site, sender)
-                    except User.DoesNotExist:
-                        # Ignore deleted users, just warn about them
-                        logging.warning("not emitting notice %s to user %s since it does not exist" % (label, user))
-                    sent += 1
+                try:
+                    for user, label, extra_context, on_site, sender in notices:
+                        try:
+                            user = User.objects.get(pk=user)
+                            logging.info("emitting notice %s to %s" % (label, user))
+                            # call this once per user to be atomic and allow for logging to
+                            # accurately show how long each takes.
+                            notification.send_now([user], label, extra_context, on_site, sender)
+                        except User.DoesNotExist:
+                            # Ignore deleted users, just warn about them
+                            logging.warning("not emitting notice %s to user %s since it does not exist" % (label, user))
+                        sent += 1
+                except :
+                    #if we sent half the batch, we don't want to resend notices to the first half next
+                    #time we run it, so just throw away this (apparantly faulty) queued_batch
+                    queued_batch.delete()
+                    raise
                 queued_batch.delete()
                 batches += 1
         except:
